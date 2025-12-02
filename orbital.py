@@ -1,3 +1,19 @@
+lic_ = """
+   Copyright 2025 Richard Tjörnhammar
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+"""
+
 import math
 
 # ---------------------------------------------------------
@@ -103,3 +119,4 @@ print(f"Mean motion:              {n:.8f} rad/s  ({86400/T:.6f} rev/dag)")
 print("\n--- STATE VECTOR (ECI) ---")
 print(f"Position (km): X={r_eci[0]:.3f}, Y={r_eci[1]:.3f}, Z={r_eci[2]:.3f}")
 print(f"Hastighet (km/s): VX={v_eci[0]:.6f}, VY={v_eci[1]:.6f}, VZ={v_eci[2]:.6f}")
+
