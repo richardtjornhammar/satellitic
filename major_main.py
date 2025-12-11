@@ -1,20 +1,7 @@
-lic_ = """
-   Copyright 2025 Richard Tjörnhammar
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+#!/usr/bin/env python3
 """
+full_research_simulator.py
 
-desc_ = """
 Full research-grade satellite multibeam coverage simulator with hybrid TLE source:
  - Primary: CelesTrak (gp.php?GROUP=...)
  - Fallback: local TLE file (one TLE block per 3-line entry)
@@ -34,6 +21,7 @@ Features:
  - Simple link-budget placeholder for EIRP/path-loss (can be enabled)
  - Outputs: PNG heatmaps and CSVs
 """
+# requests matplotlib sgp4 astropy cupy
 
 import math, time, os, sys, traceback
 from typing import List, Tuple, Dict, Optional, Any
@@ -66,12 +54,16 @@ except Exception:
 # -----------------------
 # User-configurable parameters (tune these)
 # -----------------------
+# https://celestrak.org/NORAD/elements/
+#
+ALL_CELESTRAK_GROUPS = ["Intelsat", "SES", "Eutelsat", "Telesat", "Starlink", "OneWeb", "Qianfan", "Hulianwang Digui", "Kuiper", "Iridium NEXT", "Orbcomm", "Globalstar", "Amateur Radio", "SatNOGS", "Experimental Comm", "Other Comm" ]
+#
 # TLE sources & local fallback
-CELESTRAK_GROUPS = ["starlink", "oneweb"]
+CELESTRAK_GROUPS = ["starlink", "oneweb","Globalstar","Intelsat"]
 LOCAL_TLE_FALLBACK = "local_tles.txt"   # file path for fallback if celestrak fails
 
 # Simulation grid and scale
-DEFAULT_N_TARGET = 35000      # target number of TLEs to consider (set lower for testing)
+DEFAULT_N_TARGET  = 35000     # target number of TLEs to consider (set lower for testing)
 DEFAULT_GRID_NLAT = 180       # lat resolution
 DEFAULT_GRID_NLON = 360       # lon resolution
 
@@ -646,7 +638,7 @@ def save_flat_csv(flat_arr: np.ndarray, filename: str, header: str = "value"):
 def run_full_simulation(
     out_dir: str = "simulator_output",
     groups: List[str] = CELESTRAK_GROUPS,
-    local_tle_file: str = LOCAL_TLE_FALLBACK,
+    local_tle_file: str = None,
     N_target: int = DEFAULT_N_TARGET,
     grid_nlat: int = DEFAULT_GRID_NLAT,
     grid_nlon: int = DEFAULT_GRID_NLON,
@@ -663,30 +655,44 @@ def run_full_simulation(
     chunk_ground: int = DEFAULT_CHUNK_GROUND,
     use_gpu_if_available: bool = USE_GPU_IF_AVAILABLE,
     compute_power_map: bool = False,
+    save_tles_to_disk: bool = False,
+    do_random_sampling:bool = False,
 ):
     os.makedirs(out_dir, exist_ok=True)
     # 1) gather TLEs (CelesTrak primary, local fallback)
     tles = []
-    for g in groups:
-        try:
-            print(f"Fetching TLEs for group '{g}' from CelesTrak...")
-            raw = fetch_tle_group_celestrak(g)
-            tles_group = parse_tle_text(raw)
-            print(f"  parsed {len(tles_group)} TLEs from {g}")
-            tles.extend(tles_group)
-        except Exception as e:
-            print(f"  failed to fetch {g} from CelesTrak: {e}; continuing")
+    if local_tle_file is None :
+        for g in groups:
+            try:
+                print(f"Fetching TLEs for group '{g}' from CelesTrak...")
+                raw = fetch_tle_group_celestrak(g)
+                tles_group = parse_tle_text(raw)
+                print(f"  parsed {len(tles_group)} TLEs from {g}")
+                if save_tles_to_disk :
+                    fo = open(f"{out_dir+'/'}{g}TLE.txt","w")
+                    print ( raw , file=fo )
+                    fo.close()
+                tles.extend(tles_group)
+            except Exception as e:
+                print(f"  failed to fetch {g} from CelesTrak: {e}; continuing")
 
-    if len(tles) == 0:
-        # fallback to local file
+    if len(tles) == 0 :
+        # local file
         print("No TLEs downloaded from CelesTrak; attempting to load local TLE file:", local_tle_file)
-        tles = load_local_tles(local_tle_file)
-        if len(tles) == 0:
-            raise RuntimeError("No TLEs available: CelesTrak failed and local file not found/empty.")
-
+        try:
+            tles = load_local_tles(local_tle_file)
+            if len(tles) == 0:
+                raise RuntimeError("No TLEs available: CelesTrak failed and local file not found/empty.")
+        except Exception as e:
+            print(f"  failed to obtain tle data from {local_tle_file} : {e}; continuing")
     # Trim to N_target
     if N_target is not None and len(tles) > N_target:
-        tles = tles[:N_target]
+        if do_random_sampling :
+            import random
+            indices = random.sample( range(len(tles)) , N_target )
+            tles = [ tles[ idx ] for idx in indices ]
+        else :
+            tles = tles[:N_target]
     print("Total TLEs to be used:", len(tles))
 
     # 2) propagate to epoch
@@ -781,12 +787,12 @@ def run_full_simulation(
 
     print("All outputs written to:", out_dir)
     return {
-        "total_png": out_total_png,
-        "pref_png": out_pref_png,
-        "cofreq_png": out_cofreq_png,
-        "total_csv": out_total_csv,
-        "pref_csv": out_pref_csv,
-        "cofreq_csv": out_cofreq_csv
+        "total_png"  : out_total_png  ,
+        "pref_png"   : out_pref_png   ,
+        "cofreq_png" : out_cofreq_png ,
+        "total_csv"  : out_total_csv  ,
+        "pref_csv"   : out_pref_csv   ,
+        "cofreq_csv" : out_cofreq_csv
     }
 
 # -----------------------
@@ -795,10 +801,10 @@ def run_full_simulation(
 if __name__ == "__main__":
     try:
         out = run_full_simulation(
-            out_dir="sim_out_large",
+            out_dir="sim_20251211",
             groups=CELESTRAK_GROUPS,
             local_tle_file=LOCAL_TLE_FALLBACK,
-            N_target=35000,               # set to 35000 for full-scale runs (ensure resources)
+            N_target=9500,               # set to 35000 for full-scale runs (ensure resources)
             grid_nlat=120,
             grid_nlon=240,
             model="multibeam",
@@ -823,6 +829,4 @@ if __name__ == "__main__":
     import pandas as pd
     tdf = pd.concat( (pd.read_csv(out['total_csv']),pd.read_csv(out['pref_csv']),pd.read_csv(out['cofreq_csv'])) )
     print ( tdf )
-
     tdf .describe()
-
