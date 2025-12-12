@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """
-full_research_simulator.py
 
 Full research-grade satellite multibeam coverage simulator with hybrid TLE source:
  - Primary: CelesTrak (gp.php?GROUP=...)
@@ -56,7 +55,7 @@ except Exception:
 # -----------------------
 # https://celestrak.org/NORAD/elements/
 #
-ALL_CELESTRAK_GROUPS = ["Intelsat", "SES", "Eutelsat", "Telesat", "Starlink", "OneWeb", "Qianfan", "Hulianwang Digui", "Kuiper", "Iridium NEXT", "Orbcomm", "Globalstar", "Amateur Radio", "SatNOGS", "Experimental Comm", "Other Comm" ]
+ALL_CELESTRAK_GROUPS = ["Intelsat", "SES", "Eutelsat", "Telesat", "Starlink", "OneWeb", "Qianfan", "Hulianwang Digui", "Kuiper", "Iridium NEXT", "Orbcomm", "Globalstar", "Amateur Radio", "SatNOGS" ]
 #
 # TLE sources & local fallback
 CELESTRAK_GROUPS = ["starlink", "oneweb","Globalstar","Intelsat"]
@@ -470,11 +469,13 @@ def aggregate_beams_to_ground(
 
     # Build ground ECEF (meters) and normals
     alt0_m = np.zeros_like(ground_lat_rad)
-    r_g_m = geodetic_to_ecef_m(ground_lat_rad, ground_lon_rad, alt0_m)  # (G,3)
-    n_g = r_g_m / np.linalg.norm(r_g_m, axis=1, keepdims=True)
+    r_g_m  = geodetic_to_ecef_m(ground_lat_rad, ground_lon_rad, alt0_m)  # (G,3)
+    n_g    = r_g_m / np.linalg.norm(r_g_m, axis=1, keepdims=True)
 
-    total_counts = np.zeros(G, dtype=int)
-    preferred_counts = np.zeros(G, dtype=int)
+    # G = total number of ground points
+    Nvis 		= np.zeros(G, dtype=int)	# needs reworking
+    total_counts	= np.zeros(G, dtype=int)	# also uncorrected
+    preferred_counts	= np.zeros(G, dtype=int)
     cofreq_map: Dict[float, np.ndarray] = {}
     if compute_power_map:
         # store linear power sums (watts) per ground point
@@ -524,28 +525,37 @@ def aggregate_beams_to_ground(
             counts_chunk = np.zeros(g1-g0, dtype=int)
             pref_chunk = np.zeros(g1-g0, dtype=int)
             freq_acc: Dict[float, np.ndarray] = {}
-            pow_chunk_liear = np.zeros(g1-g0, dtype=float) if compute_power_map else None
+            pow_chunk_linear = np.zeros(g1-g0, dtype=float) if compute_power_map else None
 
             # loop beams (vectorizing across ground points)
             for (sat_origin_m, boresight_u, half_angle_deg, freq_hz) in beam_list:
-                v = r_g_chunk - sat_origin_m  # vector from sat to ground (gchunk,3)
-                dist = np.linalg.norm(v, axis=1)
-                # avoid divide-by-zero
-                dist_safe = np.where(dist <= 0.0, 1e-6, dist)
-                v_unit = v / dist_safe[:,None]
-                cos_theta = np.einsum('ij,j->i', v_unit, boresight_u)
-                cos_theta = np.clip(cos_theta, -1.0, 1.0)
+                #
+                v = r_g_chunk - sat_origin_m			# vektor satellit → mark
+                dist = np.linalg.norm(v, axis=1)		# v_norm
+                dist_safe = np.where(dist <= 0.0, 1e-6, dist)	# avoid divide-by-zero
+                v_unit = v / dist_safe[:,None]			# v_unit = v / v_norm[:, None]
+                #
+                # beam-mask: θ mellan boresight och riktning från sat → mark
+                cos_theta = np.einsum('ij,j->i', v_unit, boresight_u)	# boresight_u = satellitens boresight (nadir eller tiltad)
+                cos_theta = np.clip(cos_theta, -1.0, 1.0)		# begränsa värdespann
                 theta = np.arccos(cos_theta)
                 mask_beam = theta <= math.radians(half_angle_deg)
                 if not np.any(mask_beam):
                     continue
-
-                # elevation/horizon check: dot of v with local normal > 0 for visibility
+                #
+                # elevation (grader); elevation/horizon check: dot of v with local normal > 0 for visibility
                 dotvn = np.einsum('ij,ij->i', v, n_g_chunk)
-                visible_mask = dotvn > 0.0
+                min_elev_angle = 0.0				# horisonten
+                min_elev_func  = np.sin(min_elev_angle)
+                #
+                # synlighetsmask
+                visible_mask = dotvn >= min_elev_func
                 final_mask = mask_beam & visible_mask
                 if not np.any(final_mask):
                     continue
+
+                # Nvis: alla synliga beams, oavsett frekvens
+                Nvis[g0:g1][visible_mask] += 1
 
                 # evaluate gain depending on model
                 if model == "gaussian" or model == "multibeam":
@@ -564,10 +574,12 @@ def aggregate_beams_to_ground(
                 counts_chunk[idxs] += 1
                 if is_preferred(freq_hz):
                     pref_chunk[idxs] += 1
-                # co-frequency accumulation
-                if freq_hz not in freq_acc:
-                    freq_acc[freq_hz] = np.zeros(g1-g0, dtype=int)
-                freq_acc[freq_hz][idxs] += 1
+                #
+                # Nco: per frekvensbin co-frequency accumulation
+                freq_key = round(freq_hz, 3)				# bin på kHz-nivå, byt till 6 för MHz
+                if freq_key not in freq_acc:
+                    freq_acc[freq_key] = np.zeros(g1-g0, dtype=int)	# freq_acc[freq_hz] hz <-> key
+                freq_acc[freq_key][idxs] += 1				# freq_acc[freq_hz][idxs] += 1
 
                 # optional received power accumulation (very simple FSPL model from sat to ground)
                 if compute_power_map:
@@ -600,7 +612,7 @@ def aggregate_beams_to_ground(
     else:
         power_dbw = None
 
-    return total_counts, preferred_counts, cofreq_map, power_dbw
+    return total_counts, preferred_counts, cofreq_map, power_dbw, Nvis
 
 # -----------------------
 # ECEF/Geodetic helpers
@@ -728,7 +740,7 @@ def run_full_simulation(
     # 7) aggregate beams to ground
     print("Aggregating beams to ground (this can be slow for large N; tune chunks)...")
     t0 = time.time()
-    total_counts, pref_counts, cofreq_map, power_dbw = aggregate_beams_to_ground(
+    total_counts, pref_counts, cofreq_map, power_dbw, Nvis = aggregate_beams_to_ground(
         sat_ecef_km=pos_ecef_km,
         sat_vel_eci_km_s=vel_teme_km_s,
         sat_names=names,
@@ -770,9 +782,11 @@ def run_full_simulation(
     plot_heatmap(combined_cofreq_grid, lat_vals, lon_vals, out_cofreq_png, title="Co-frequency beams")
 
     # Save CSVs and grids
+    out_nvis_csv = os.path.join(out_dir, "nvis_beams.csv")
     out_total_csv = os.path.join(out_dir, "total_beams.csv")
     out_pref_csv = os.path.join(out_dir, "preferred_beams.csv")
     out_cofreq_csv = os.path.join(out_dir, "cofreq_beams.csv")
+    save_flat_csv(Nvis, out_nvis_csv, header="nvis_beams")
     save_flat_csv(total_counts, out_total_csv, header="total_beams")
     save_flat_csv(pref_counts, out_pref_csv, header="preferred_beams")
     save_flat_csv(combined_cofreq_flat, out_cofreq_csv, header="cofreq_beams")
@@ -792,19 +806,138 @@ def run_full_simulation(
         "cofreq_png" : out_cofreq_png ,
         "total_csv"  : out_total_csv  ,
         "pref_csv"   : out_pref_csv   ,
-        "cofreq_csv" : out_cofreq_csv
+        "cofreq_csv" : out_cofreq_csv ,
+        "nvis_csv"   : out_nvis_csv   
     }
 
+def download_tle_data (
+    out_dir: str = "tle_downloads",
+    groups: List[str] = ALL_CELESTRAK_GROUPS,
+):
+    os.makedirs(out_dir, exist_ok=True)
+    # gather TLEs from CelesTrak primary
+    tles  = []
+    names = []
+
+    for g in groups:
+        try:
+            print(f"Fetching TLEs for group '{g}' from CelesTrak...")
+            raw = fetch_tle_group_celestrak(g)
+            tles_group = parse_tle_text(raw)
+            names.append( f"{out_dir+'/'}{g}TLE.txt" )
+            print(f"  parsed {len(tles_group)} TLEs from {g}")
+            fo = open(f"{out_dir+'/'}{g}TLE.txt","w")
+            print ( raw , file=fo )
+            fo.close()
+            tles.extend(tles_group)
+        except Exception as e:
+            print(f"  failed to fetch {g} from CelesTrak: {e}; continuing")
+
+def gather_tle_data (
+    out_dir: str = "tle_downloads",
+    groups: List[str] = ALL_CELESTRAK_GROUPS,
+    local_tle_file: str = "tle_local.txt",
+):
+    os.makedirs(out_dir, exist_ok=True)
+    # gather TLEs from CelesTrak primary
+    tles  = []
+    names = []
+
+    for g in groups:
+        try:
+            print(f"Fetching TLEs for group '{g}' from CelesTrak...")
+            raw = fetch_tle_group_celestrak(g)
+            tles_group = parse_tle_text(raw)
+            names.append( f"{out_dir+'/'}{g}TLE.txt" )
+            print(f"  parsed {len(tles_group)} TLEs from {g}")
+            fo = open(f"{out_dir+'/'}{g}TLE.txt","w")
+            print ( raw , file=fo )
+            fo.close()
+            tles.extend(tles_group)
+        except Exception as e:
+            print(f"  failed to fetch {g} from CelesTrak: {e}; continuing")
+    fo = open(local_tle_file,"w")
+    fo .close()
+    fo = open(local_tle_file,"a")
+    for name in names :
+        print ( name , ':', os.path.getsize(name) )
+        with open(name,"r") as input :
+            try:
+                for line in input :
+                    if len(line.replace(" ","").replace("\n","")) > 0 :
+                        print ( line.replace( "\n" , "" ) , file=fo )
+            except Exception as err:
+                continue
+    fo.close()
+
+def collate_tle_data(
+    out_dir: str        = "tle_downloads",
+    groups: List[str]   = ALL_CELESTRAK_GROUPS,
+    local_tle_file: str = "tle_local.txt",
+):
+    os.makedirs(out_dir, exist_ok=True)
+    # gather TLEs from CelesTrak primary
+    tles  = []
+    names = []
+    fo = open(local_tle_file,"w")
+    fo .close()
+    fo = open(local_tle_file,"a")
+    for g in groups :
+        name = f"{out_dir+'/'}{g}TLE.txt"
+        print ( name , ':', os.path.getsize(name) )
+        with open(name,"r") as input :
+            try:
+                for line in input :
+                    if len(line.replace(" ","").replace("\n","")) > 0 :
+                        print ( line.replace( "\n" , "" ) , file=fo )
+            except Exception as err:
+                continue
+    fo.close()
+
+""" PSUEDO CODE
+dev++
+start_time = now()
+dt_seconds = 30
+n_steps = int(24*3600 / dt_seconds)
+times = [start_time + i*dt_seconds for i in range(n_steps)]
+
+Nvis_acc = np.zeros(G)
+Nco_acc = {}
+total_acc = np.zeros(G)
+
+for t in times:
+    sats = propagate_all_satellites(t)
+    tot, pref, co, pwr, Nvis = aggregate_beams_to_ground_gpu(...)
+    
+    Nvis_acc += Nvis
+    total_acc += tot
+    
+    for fk in co:
+        if fk not in Nco_acc:
+            Nco_acc[fk] = co[fk].copy()
+        else:
+            Nco_acc[fk] += co[fk]
+
+Nvis_avg = Nvis_acc / len(times)
+total_avg = total_acc / len(times)
+Nco_avg = {f: arr / len(times) for f, arr in Nco_acc.items()}
+"""
+#
 # -----------------------
 # Small sanity-run when executed directly
 # -----------------------
 if __name__ == "__main__":
+    if False :
+        download_tle_data()
+        collate_tle_data()
+        exit(1)
+
     try:
         out = run_full_simulation(
-            out_dir="sim_20251211",
-            groups=CELESTRAK_GROUPS,
-            local_tle_file=LOCAL_TLE_FALLBACK,
-            N_target=9500,               # set to 35000 for full-scale runs (ensure resources)
+            out_dir="sim_20251212_dev",
+            groups=ALL_CELESTRAK_GROUPS,	# CELESTRAK_GROUPS,
+            local_tle_file="tle_local.txt", 	# LOCAL_TLE_FALLBACK,
+            N_target=10000,               	# set to 35000 for full-scale runs (ensure resources)
             grid_nlat=120,
             grid_nlon=240,
             model="multibeam",
@@ -819,7 +952,8 @@ if __name__ == "__main__":
             chunk_sat=256,
             chunk_ground=20000,
             use_gpu_if_available=False,   # set True if you installed cupy
-            compute_power_map=False
+            compute_power_map = True,
+            do_random_sampling = True,
         )
         print("Simulation finished. Outputs:", out)
     except Exception as err:
@@ -827,6 +961,7 @@ if __name__ == "__main__":
         traceback.print_exc()
 
     import pandas as pd
-    tdf = pd.concat( (pd.read_csv(out['total_csv']),pd.read_csv(out['pref_csv']),pd.read_csv(out['cofreq_csv'])) )
-    print ( tdf )
-    tdf .describe()
+    tdf = pd.concat( (	pd.read_csv(out['total_csv']),	pd.read_csv(out['pref_csv']),
+			pd.read_csv(out['cofreq_csv']),	pd.read_csv(out['nvis_csv'])) )
+    print ( tdf .describe() )
+
