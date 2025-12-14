@@ -122,3 +122,7 @@ def collate_tle_data(
                 continue
     fo.close()
 
+if __name__ == "__main__":
+    if True :
+        download_tle_data()
+        collate_tle_data()
