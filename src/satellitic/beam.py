@@ -1,4 +1,19 @@
-from .global import *
+lic_ = """
+   Copyright 2025 Richard Tjörnhammar
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+"""
+from .init import *
 # -----------------------
 # Beam gain models
 # -----------------------
@@ -18,16 +33,15 @@ def uniform_beam_gain(theta_rad: np.ndarray, half_angle_deg: float):
     bw = math.radians(half_angle_deg)
     return (theta_rad <= bw).astype(float)
 
-# -----------------------
-# Multi-beam generator
-# -----------------------
 def multi_beam_generator(n_beams: int,
                          beam_half_angle_deg: float,
                          pattern: str = "hex",
                          max_tilt_deg: float = 60.0,
                          frequency_band: str = "E-band",
                          rng: Optional[np.random.Generator] = None):
-    """
+    desc_=""" -----------------------
+ Multi-beam generator
+ -----------------------
     Generate beam center directions in satellite body frame (z = nadir),
     beam half-angles and frequencies (Hz).
     """
@@ -139,12 +153,6 @@ def _default_freq_for_band(band_name: str):
         return 20e9
     return 12e9
 
-
-
-
-# -----------------------
-# Aggregation: beams -> ground (chunked; CPU & optional GPU support)
-# -----------------------
 def aggregate_beams_to_ground(
     sat_ecef_km: np.ndarray,
     sat_vel_eci_km_s: np.ndarray,
@@ -166,7 +174,9 @@ def aggregate_beams_to_ground(
     compute_power_map: bool = False,
     eirp_dbw: float = 47.0  # example EIRP in dBW per beam (placeholder)
 ):
-    """
+    desc_ = """ -----------------------
+ Aggregation: beams -> ground (chunked; CPU & optional GPU support)
+ -----------------------    
     Core aggregation routine. Returns:
      - total_beams_per_ground (G,)
      - preferred_beams_per_ground (G,)
@@ -179,6 +189,8 @@ def aggregate_beams_to_ground(
     """
     use_gpu = use_gpu and CUPY_AVAILABLE
     xp = cp if use_gpu else np
+    if compute_power_map :
+        from .power import *
 
     N = sat_ecef_km.shape[0]
     G = ground_lat_rad.size
@@ -189,9 +201,9 @@ def aggregate_beams_to_ground(
     n_g    = r_g_m / np.linalg.norm(r_g_m, axis=1, keepdims=True)
 
     # G = total number of ground points
-    Nvis 		= np.zeros(G, dtype=int)	# needs reworking
-    total_counts	= np.zeros(G, dtype=int)	# also uncorrected
-    preferred_counts	= np.zeros(G, dtype=int)
+    Nvis                  = np.zeros(G, dtype=int)	# needs reworking
+    total_counts          = np.zeros(G, dtype=int)	# also uncorrected
+    preferred_counts      = np.zeros(G, dtype=int)
     cofreq_map: Dict[float, np.ndarray] = {}
     if compute_power_map:
         # store linear power sums (watts) per ground point
