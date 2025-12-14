@@ -87,3 +87,6 @@ R_EARTH_KM = 6378.137
 KM2M = 1000.0
 M2KM = 1.0 / 1000.0
 RAD = math.pi / 180.0
+
+# physical constants
+speed_of_light = 299792458
