@@ -5,7 +5,7 @@ In order to create a similar image as this:
 ![Example output of a cofrequency assessment]([https://myoctocat.com/assets/images/base-octocat.svg](https://raw.githubusercontent.com/pts-rictjo/satellitic/674bec3d24d930ecb37ec6bdce9e4cd7c238a03e/examples/cofreq_heatmap.png))
 
 run the below code
-´´´
+```
 import satellitic.simulation as satsim
 
 out = satsim.run_snapshot_simulation(
@@ -35,4 +35,4 @@ print("Simulation finished. Outputs:", out)
 import pandas as pd
 tdf = pd.concat( ( pd.read_csv(out['total_csv']),	pd.read_csv(out['pref_csv']), pd.read_csv(out['cofreq_csv']),	pd.read_csv(out['nvis_csv'])) )
 print ( tdf .describe() )
-´´´
+```
