@@ -15,10 +15,6 @@ lic_ = """
 """
 from .init import *
 
-desc_ = """ -----------------------
- Utilities: TLE download / parsing
- -----------------------"""
-
 def fetch_tle_group_celestrak(group: str, timeout: int = 30) -> str:
     url = f"https://celestrak.com/NORAD/elements/gp.php?GROUP={group}&FORMAT=tle"
     r = requests.get(url, timeout=timeout)
@@ -26,7 +22,7 @@ def fetch_tle_group_celestrak(group: str, timeout: int = 30) -> str:
     return r.text
 
 def parse_tle_text(raw: str) -> List[Tuple[str,str,str]]:
-    """
+    desc_ = """
     Parse TLE text (3-line blocks: name, line1, line2).
     Returns list of (name, line1, line2).
     Robust to extra blank lines.
@@ -51,7 +47,6 @@ def load_local_tles(filepath: str) -> List[Tuple[str,str,str]]:
     with open(filepath, "r", encoding="utf-8") as f:
         data = f.read()
     return parse_tle_text(data)
-
 
 def download_tle_data (
     out_dir: str = "tle_downloads",
