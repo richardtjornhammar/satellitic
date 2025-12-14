@@ -14,8 +14,9 @@ pip install satellitic
 In order to create a similar image as this:
 ![text](https://raw.githubusercontent.com/pts-rictjo/satellitic/674bec3d24d930ecb37ec6bdce9e4cd7c238a03e/examples/cofreq_heatmap.png)
 
-run the below code
+place the content of this projects data folder in you run root and execute the below code
 ```
+from satellitic.init import ALL_CELESTRAK_GROUPS,PREFERRED_BANDS
 import satellitic.simulation as satsim
 
 out = satsim.run_snapshot_simulation(
