@@ -1,10 +1,24 @@
+lic_ = """
+   Copyright 2025 Richard Tjörnhammar
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+"""
 from .global import *
 
-# -----------------------
-# TEME -> ECEF conversion
-# -----------------------
 def teme_to_ecef_km(pos_teme_km: np.ndarray, epoch_dt: datetime.datetime):
-    """
+    desc_ = """ -----------------------
+ TEME -> ECEF conversion
+ -----------------------
     Convert TEME positions (km) to ECEF positions (km).
     If astropy is available, use its built-in transforms (recommended).
     Otherwise fallback to a GMST rotation (approximate).
@@ -70,11 +84,10 @@ def julian_date_to_gmst_rad(jd: float) -> float:
     gmst_seconds = gmst_seconds % 86400.0
     return (gmst_seconds / 86400.0) * 2.0 * math.pi
 
-# -----------------------
-# ECEF <-> geodetic (WGS84)
-# -----------------------
 def ecef_to_geodetic_wgs84_km(r_ecef_km: np.ndarray):
-    """
+    desc_=""" -----------------------
+ ECEF <-> geodetic (WGS84)
+ -----------------------    
     Vectorized ECEF (km) -> geodetic lat, lon, alt (lat, lon rad; alt in km)
     Iterative Bowring method.
     """
@@ -100,13 +113,10 @@ def ecef_to_geodetic_wgs84_km(r_ecef_km: np.ndarray):
     alt = p / np.cos(lat) - N
     return lat, lon, alt * M2KM
 
-
-
-
-# -----------------------
-# ECEF/Geodetic helpers
-# -----------------------
 def geodetic_to_ecef_m(lat_rad: np.ndarray, lon_rad: np.ndarray, alt_m: np.ndarray):
+    desc_=""" -----------------------
+ ECEF/Geodetic helper
+ -----------------------"""
     a = WGS84_A_M; e2 = WGS84_E2
     sinl = np.sin(lat_rad); cosl = np.cos(lat_rad)
     N = a / np.sqrt(1 - e2*sinl*sinl)
