@@ -90,3 +90,4 @@ RAD = math.pi / 180.0
 
 # physical constants
 speed_of_light = 299792458
+MU_EARTH_GRAV = 398600.4418       # Earth gravitational parameter [km^3/s^2]
