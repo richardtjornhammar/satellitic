@@ -762,3 +762,9 @@ if __name__ == "__main__":
     tdf = pd.concat( (	pd.read_csv(out['total_csv']),	pd.read_csv(out['pref_csv']),
 			pd.read_csv(out['cofreq_csv']),	pd.read_csv(out['nvis_csv'])) )
     print ( tdf .describe() )
+
+    newtonian_simulator ( bAnimated=False,Nsteps=1000,
+        tle_file_name	= "/home/rictjo/Downloads/local_tles_smaller.txt" )
+    print('Wrote a trajectory file')
+    newtonian_simulator ( bAnimated=True,
+        tle_file_name	= "/home/rictjo/Downloads/local_tles_smaller.txt" )
