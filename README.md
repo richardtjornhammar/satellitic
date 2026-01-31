@@ -53,3 +53,9 @@ print ( tdf .describe() )
 >>> from vispy import app
 ... print(app.use_app('pyqt5', True))  # force PyQt5
 ```
+# To view an orbital simulation
+```
+>>> from satellitic.simulation import newtonian_simulator
+ImportSuccess: HAS JAX IN ENVIRONMENT
+>>> newtonian_simulator(bAnimated=True, tle_file_name='data/local_small_tle.txt')
+```
