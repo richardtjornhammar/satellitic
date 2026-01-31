@@ -156,8 +156,6 @@ if bUseJax :
     def total_accel(r, m, idx_earth, idx_leo):
         a		= accel_jax(r, m)		# Newtonian accelerations
         if idx_earth is None or idx_leo is None :
-            print('PATH', idx_earth, idx_leo )
-            exit(1)
             return a
         rE		= r[idx_earth]
         r_rel	= r[idx_leo] - rE
@@ -446,6 +444,23 @@ def newtonian_simulator( bAnimated = True ,
             bgcolor='black',
             show=True
         )
+        # Whole system
+        view = canvas.central_widget.add_view()
+        view.camera = scene.cameras.PanZoomCamera(aspect=1)
+        view.camera.set_range(
+            x=(-1.2*AU, 1.2*AU),
+            y=(-1.2*AU, 1.2*AU)
+        )
+
+        # Scatter visual
+        markers = visuals.Markers()
+        markers.set_data(
+            r_np[:, :3],
+            face_color=colors,
+            size=sizes
+        )
+        view.add(markers)
+		
         if not idx_leo is None :
             # Earth-centric 3D canvas
             canvas_ec = scene.SceneCanvas(
@@ -484,28 +499,6 @@ def newtonian_simulator( bAnimated = True ,
                 z=(-R, R)
             )
 
-        # Whole system
-        view = canvas.central_widget.add_view()
-        view.camera = scene.cameras.PanZoomCamera(aspect=1)
-        view.camera.set_range(
-            x=(-1.2*AU, 1.2*AU),
-            y=(-1.2*AU, 1.2*AU)
-        )
-
-        # Scatter visual
-        markers = visuals.Markers()
-        markers.set_data(
-            r_np[:, :3],
-            face_color=colors,
-            size=sizes
-        )
-        view.add(markers)
-
-        ## One window two panes
-        #grid = canvas.central_widget.add_grid()
-        #view2d = grid.add_view(row=0, col=0)
-        #view3d = grid.add_view(row=0, col=1)
-
     # Simulation generator
     sim = simulate(
         r, v, m,
@@ -516,7 +509,7 @@ def newtonian_simulator( bAnimated = True ,
     )
 
     if not Nsteps is None :
-        from tle_io import TrajectoryManager
+        from .iotools import TrajectoryManager
         writer = TrajectoryManager(
             trajectory_filename,
             particle_type=particle_type,
