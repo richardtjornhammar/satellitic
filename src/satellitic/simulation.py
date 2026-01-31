@@ -270,7 +270,7 @@ def newtonian_simulator( bAnimated = True ,
         dt_frame = dt * steps_per_frame
 
     if bAnimated :
-        from .visuals import choose_vispy_backend
+        from .visualise import choose_vispy_backend
         bGUI = choose_vispy_backend()
         if bGUI :
             # ---- VisPy 2D projected solar system plot ----
