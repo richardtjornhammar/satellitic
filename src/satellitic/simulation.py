@@ -335,7 +335,7 @@ def newtonian_simulator( bAnimated = True ,
 
     if not tle_file_name is None :
         from datetime import datetime
-        from tle_io import read_tles, tles_to_states
+        from .iotools import read_tles, tles_to_states
         #
         epoch = datetime(2025, 1, 1)
         sats				= read_tles(tle_file_name)
@@ -446,43 +446,43 @@ def newtonian_simulator( bAnimated = True ,
             bgcolor='black',
             show=True
         )
+        if not idx_leo is None :
+            # Earth-centric 3D canvas
+            canvas_ec = scene.SceneCanvas(
+                keys='interactive',
+                size=(600, 600),
+                bgcolor='black',
+                show=True,
+                title='Earth-centric view'
+            )
+            Re = constants('REarth')
+            view_ec = canvas_ec.central_widget.add_view()
+            view_ec.camera = scene.cameras.TurntableCamera(
+                fov=45,
+                distance=Re*5
+            )
+            earth_group = np.concatenate([[idx_moon], idx_leo])
+            r_ec = r_np[earth_group] - r_np[idx_earth]
+            markers_ec = visuals.Markers()
+            markers_ec.set_data(
+                r_ec,
+                size=6,
+                face_color=[1, 1, 1, 1]
+            )
+            view_ec.add(markers_ec)
 
-        # Earth-centric 3D canvas
-        canvas_ec = scene.SceneCanvas(
-            keys='interactive',
-            size=(600, 600),
-            bgcolor='black',
-            show=True,
-            title='Earth-centric view'
-        )
-        Re = constants('REarth')
-        view_ec = canvas_ec.central_widget.add_view()
-        view_ec.camera = scene.cameras.TurntableCamera(
-            fov=45,
-            distance=Re*5
-        )
-        earth_group = np.concatenate([[idx_moon], idx_leo])
-        r_ec = r_np[earth_group] - r_np[idx_earth]
-        markers_ec = visuals.Markers()
-        markers_ec.set_data(
-            r_ec,
-            size=6,
-            face_color=[1, 1, 1, 1]
-        )
-        view_ec.add(markers_ec)
-
-        earth = visuals.Sphere(
-            radius=Re,
-            method='latitude',
-            color=(0.1, 0.3, 1.0, 0.4)
-        )
-        view_ec.add(earth)
-        R = constants('DMoon')  # ~ Moon distance
-        view_ec.camera.set_range(
-            x=(-R, R),
-            y=(-R, R),
-            z=(-R, R)
-        )
+            earth = visuals.Sphere(
+                radius=Re,
+                method='latitude',
+                color=(0.1, 0.3, 1.0, 0.4)
+            )
+            view_ec.add(earth)
+            R = constants('DMoon')  # ~ Moon distance
+            view_ec.camera.set_range(
+                x=(-R, R),
+                y=(-R, R),
+                z=(-R, R)
+            )
 
         # Whole system
         view = canvas.central_widget.add_view()
@@ -540,20 +540,19 @@ def newtonian_simulator( bAnimated = True ,
                 face_color=colors,
                 size=sizes
             )
-        
-            # Earth-centric 3D view
-            r_ec = r_np[earth_group] - r_np[idx_earth]
-            markers_ec.set_data(
-                r_ec,
-                face_color=[1, 1, 1, 1],
-                size=6
-            )
+            if not idx_leo is None :
+                # Earth-centric 3D view
+                r_ec = r_np[earth_group] - r_np[idx_earth]
+                markers_ec.set_data(
+                    r_ec,
+                    face_color=[1, 1, 1, 1],
+                    size=6
+                )
 
         timer = app.Timer(interval=1/30)
         timer.connect(update)
         timer.start()
         app.run()
-
 
 # -----------------------
 # Top-level pipeline
