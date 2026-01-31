@@ -61,5 +61,6 @@ ImportSuccess: HAS JAX IN ENVIRONMENT
 >>> newtonian_simulator(bAnimated=True, tle_file_name='data/local_small_tle.txt')
 ```
 To write a trajectory file you can specify
+```
 >>> newtonian_simulator(bAnimated=False, tle_file_name='data/local_small_tle.txt' , Nsteps=10000 )
 ```
