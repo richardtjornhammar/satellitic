@@ -5,17 +5,17 @@ def choose_vispy_backend():
 
     try:
         import PyQt5
-        vispy.use('pyqt5', 'force')
+        vispy.use('pyqt5', force = True )
         backend_set = True
     except ImportError:
         try:
             import PySide6
-            vispy.use('pyside6', 'force')
+            vispy.use('pyside6', force = True )
             backend_set = True
         except ImportError:
             try:
                 import glfw
-                vispy.use('glfw', 'force')
+                vispy.use('glfw', force = True )
                 backend_set = True
             except ImportError:
                 backend_set = False
