@@ -4,6 +4,8 @@ A collection of tools for satellite assessments
 [![License](https://img.shields.io/github/license/Qiskit/qiskit.svg?)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/satellitic?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/satellitic)
 
+Take note that while this package aims to introduce simulation methods many of the derived statistical properties does not require full simulations. The reason is that satellite movements are well modelled by assuming that they are ergodic. Thus time averages are equal to ensemble averages.
+
 ## Install
 Install the package using :
 ```
