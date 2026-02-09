@@ -20,13 +20,13 @@ license = "Apache-2.0"
 license-files = ["LICEN[CS]E*"]
 
 dependencies = [
-  "numpy>=1.23",
-  "pandas>=2.0.3",
+  "numpy>=2.3.4",
+  "pandas>=2.3.1",
   "jax>=0.4.10",
   "sgp4>=2.21",
   "astropy>=5.1",
   "vispy>=0.13",
-  "matplotlib>=3.7",
+  "matplotlib>=3.10.5",
   "requests>=2.31",
   "pyqt5>=5.15",
 ]
