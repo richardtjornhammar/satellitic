@@ -36,3 +36,9 @@ def link_budget_received_db(eirp_dbw: float, freq_hz: float, distance_m: float, 
     fspl = free_space_path_loss_db(freq_hz, distance_m)
     pr = eirp_dbw - fspl + rx_gain_db - losses_db
     return pr
+
+def reciever_noise( T_K , BW_Hz ) :
+    kB		= 1.380649E-23				# m^2 kg s^-2 K^-1
+    RX_N0	= 10*np.log10( kB * T_K / 1E-3 )	# mW [dBm]
+    NRx		= RX_N0 + 10*np.log10(BW_Hz)		
+    return ( NRx )
