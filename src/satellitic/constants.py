@@ -50,37 +50,39 @@ universal_constants = { 'G' : 6.674 * 10**(-11)	, # m3/(kg s2)	# gravitational c
         }
 
 constants_solar_system = { 'G' : 6.674 * 10**(-11)	, # m3/(kg s2)	# gravitational constant
-		'c' : 2.9979 * 10**8		, # m/s		# speed of light
-		'h' : 6.626 * 10**(-34) 	, # J-s		# plancks constant
-		'MH': 1.673 * 10**(-27) 	, # kg		# mass of hydrogen atom
-		'Me': 9.109 * 10**(-31) 	, # kg		# mass of an electron
-		'Rinf': 1.0974 * 10**7  	, # m−1		# Rydbergs constant
-		'sigm': 5.670 * 10**(-8)	, # J/(s·m2 deg4) # Stefan-Boltzmann constant
-		'Lmax': 2.898 * 10**(-3)	, # m K		# Wien’s law constant (λmaxT)
-		'eV': 1.602 * 10**(-19) 	, # J 		# electron volt (energy)
-		'ETNT': 4.2 * 10**9 		, # J			# energy equivalent of 1 ton TNT
-		'AU': 1.496 * 10**11 		, # m 		# astronomical unit
-		'ly': 9.461 * 10**15		, # m 		# Light-year
-		'pc': 3.086 * 10**16		, # m 		# parsec
-		'lpc': 3.262 			, # m		# * LIGHTYEARS ( also parsec )
-		'y': 3.156 * 10**7		, # s			# sidereal year
-		'MEarth': 5.974 * 10**24	, # kg 		# mass of Earth
-		'REarth': 6.378 * 10**6	, # m 		# equatorial radius of Earth
-		'vEarth': 1.119 * 10**4	, # m/s		# escape velocity of Earth
-		'MSun': 1.989 * 10**30	, # kg 		# mass of Sun
-		'RSun': 6.960 * 10**8		, # m 		# equatorial radius of Sun
-		'LSun': 3.85*10**26		, # W 		# luminosity of Sun
-		'S': 1.368 * 10**3 		, # W/m2 		# solar constant (flux of energy received at Earth)
+	'c' : 2.9979 * 10**8		, # m/s		# speed of light
+	'h' : 6.626 * 10**(-34) 	, # J-s		# plancks constant
+	'MH': 1.673 * 10**(-27) 	, # kg		# mass of hydrogen atom
+	'Me': 9.109 * 10**(-31) 	, # kg		# mass of an electron
+	'Rinf': 1.0974 * 10**7  	, # m−1		# Rydbergs constant
+	'sigm': 5.670 * 10**(-8)	, # J/(s·m2 deg4) # Stefan-Boltzmann constant
+	'Lmax': 2.898 * 10**(-3)	, # m K		# Wien’s law constant (λmaxT)
+	'eV': 1.602 * 10**(-19) 	, # J 		# electron volt (energy)
+	'ETNT': 4.2 * 10**9 		, # J			# energy equivalent of 1 ton TNT
+	'AU': 1.496 * 10**11 		, # m 		# astronomical unit
+	'ly': 9.461 * 10**15		, # m 		# Light-year
+	'pc': 3.086 * 10**16		, # m 		# parsec
+	'lpc': 3.262 			, # m		# * LIGHTYEARS ( also parsec )
+	'y': 3.156 * 10**7		, # s			# sidereal year
+	'MEarth': 5.974 * 10**24	, # kg 		# mass of Earth
+	'REarth': 6.378 * 10**6	, # m 		# equatorial radius of Earth
+	'vEarth': 1.119 * 10**4	, # m/s		# escape velocity of Earth
+	'MSun': 1.989 * 10**30	, # kg 		# mass of Sun
+	'RSun': 6.960 * 10**8		, # m 		# equatorial radius of Sun
+	'LSun': 3.85*10**26		, # W 		# luminosity of Sun
+	'S': 1.368 * 10**3 		, # W/m2 		# solar constant (flux of energy received at Earth)
     'DMoon': 384399*1000	, # m		# Distance from Moon <-> Earth
-		'RMoon': 3474*1000*0.5	, # m		# Moon radius
-		'TMoon': 29.5			, # days		# Moons earth orbit time (synodic month)
+	'RMoon': 3474*1000*0.5	, # m		# Moon radius
+	'TMoon': 29.5			, # days		# Moons earth orbit time (synodic month)
     'revMoon':27.3 			, # days		# Moons one complete revolution time
-		'MMoon': 7.346 * 10**22 	, # kg		# Moon mass
+	'MMoon': 7.346 * 10**22 	, # kg		# Moon mass
     'J2' : 1.08262668e-3		, # J2 acceleration for LEO satellites
     'RE' : 6.378137e6		, # meters (equatorial)
     'MU_E' : 3.986004418e14	, # m^3 / s^2	# G*M
     'DLEO' : 1000e3		, # [ m ]
-		# Hubble constant (H0) 	 approximately 20 km/s per million light-years, or approximately 70 km/s per megaparsec
+    'Earth-J2' : 1.08262668e-3	, # J2 acceleration for LEO satellites
+    'Earth-R'  : 6.378137e6		, # meters (equatorial)
+    'Earth-MU' : 3.986004418e14	, # m^3 / s^2	# G*M
 	}
 
 def constants ( sel = None, constants_ = constants_solar_system  ) :
@@ -340,6 +342,8 @@ class TLESatellites ( object ) :
         self.assign()
         self.generate_nametypes()
         self.make_arrays(xp)
+        self.idx_satellites_global_ = None
+        self.idx_planet_global_ = None
 
     def satellite_masses(self, N, default=1000.0) :
         return np.full(N, default) #.reshape(-1,1)
@@ -400,9 +404,17 @@ class TLESatellites ( object ) :
         return self.r_, self.v_, self.m_, self.types_, self.names_
 
     def block_indices(self,Ncurrent):
-            Nsat			= len(self.m_)
-            idx_leo			= np.array(range( Ncurrent, Ncurrent+Nsat ))
-            return idx_leo
+        Nsat			= len(self.m_)
+        idx_leo			= np.array(range( Ncurrent, Ncurrent+Nsat ))
+        self.idx_satellites_global_ = idx_leo
+        return idx_leo
+    
+    def set_global_planet_index(self, idx_planet) :
+        self.idx_planet_global_ = idx_planet
+        
+    def get_index_pairs(self) :
+        return ( self.idx_planet_global_ , self.idx_satellites_global_ )
+
 
 class InteractionLedger ( object ) :
     def __init__( self , mass_rule = 'max' , mass_epsilon=1E-12 ) :
@@ -415,6 +427,7 @@ class InteractionLedger ( object ) :
         self.mass_rule_     = mass_rule
         self.idx_massive_   = None
         self.idx_light_     = None
+        self.tle_pairs_     = None
     
     def set_phase_space ( self , phase_space ) :
         self.phase_space_ = phase_space
@@ -445,6 +458,10 @@ class InteractionLedger ( object ) :
     def get_mass_partition( self ) :
         return self.idx_massive_, self.idx_light_
         
+    def convert_partition_types(self,xp):
+        self.idx_massive_   = xp.asarray(self.idx_massive_)
+        self.idx_light_     = xp.asarray(self.idx_light_)
+    
     def set_dominant_mass_scale(self,M_dom=None,mass_rule=None):
         if mass_rule is None :
             mass_rule = self.mass_rule_
@@ -464,10 +481,10 @@ class InteractionLedger ( object ) :
         else:
             self.m_dom_ = M_dom
         return ( self.m_dom_ )
+        
+    def get_tle_pairs( self ):
+        return ( self.tle_pairs_ )
 
-
-AU = universal_constants['AU']
-d2s = 24*60*60 # days to secs
 solarsystem_notes = """https://www.jpl.nasa.gov/_edu/pdfs/scaless_reference.pdf"""
 solarsystem_legacy = { # Distance, Radius, revolution time, mass, type
 'Sun'      : [0        , 1391400e3*0.5, 0 , 1.989*10**30 , celestial_types['Star'] ] ,
@@ -518,15 +535,20 @@ vsolar = np.array([ [0,0,0],
 
 def build_run_system( solarsystem   ,
         constants_solar_system      ,
-        satellite_topology = None ):
+        satellite_topology = None ) :
     solsystem = Starsystem( constants_solar_system )
     solsystem .assign_from_dict( solarsystem )
+    solsystem .satellites_object = []
     if not satellite_topology is None :
         for item in satellite_topology.items() :
+            Ncurrent = len(solsystem.phase_space()[0])
             satellites = TLESatellites( tle_file_name = item[1] ,
                                 planet = item[0] )
+            satellites.set_global_planet_index( solsystem.find_indices_of( item[0] )[0] )
             satellites.add_planet_dependency( item[0] , *solsystem.phase_space(name = item[0])[:2] )
             solsystem.add_particles( *satellites.phase_state() )
+            satellites.block_indices(Ncurrent)
+            solsystem.satellites_object.append( [item[0],satellites] )
     return solsystem
 
 if __name__=='__main__' :
