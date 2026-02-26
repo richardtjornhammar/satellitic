@@ -552,7 +552,7 @@ def build_run_system( solarsystem   ,
     return solsystem
 
 
-def build_run_system_ledger( run_system , run_parameters , constants = constants ) :
+def build_run_system_ledger( run_system , run_parameters , constants = constants , xp=xp ) :
     # CREATION AND SETUP OF A LEDGER
     if not ( run_parameters['mass_epsilon'] is None and run_parameters['mass_rule'] is None ) :
         run_system.ledger = InteractionLedger( mass_rule = run_parameters['mass_rule'] ,
@@ -566,7 +566,11 @@ def build_run_system_ledger( run_system , run_parameters , constants = constants
     ledger .convert_partition_types(xp)
 
 
-def build_params(run_system):
+def build_params(run_system, bUseJax=bUseJax ):
+    if bUseJax :
+        import jax.numpy as xp
+    else :
+        import numpy as xp
     """
     Create a jax friendly structure for parameters
     """
@@ -574,9 +578,15 @@ def build_params(run_system):
     G = ledger.constants('G')
 
     idx_massive, idx_light = ledger.get_mass_partition()
+    Nm = len(idx_massive)
+    if Nm > 5e4 :
+        print ('WARNING: Needs barnes-hut like treatment of masses')
+    if Nm > 1e6 :
+        print ('WARNING: Needs Fast Multipole Method (FMM) treatment of massives' )
+        print ('WARNING: Needs aggregate effect field for light masses')
 
-    idx_massive = xp.asarray(idx_massive, dtype=jnp.int32)
-    idx_light   = xp.asarray(idx_light,   dtype=jnp.int32)
+    idx_massive = xp.asarray(idx_massive, dtype=xp.int32)
+    idx_light   = xp.asarray(idx_light,   dtype=xp.int32)
 
     # ---- Build flat satellite structure ----
     satellite_indices  = []
@@ -599,8 +609,9 @@ def build_params(run_system):
             satellite_parent.append(len(planet_indices)-1)
 
     params = {
-        "G": xp.asarray(G),
-
+        "G" : xp.asarray( G),
+        "Number of Massive": xp.asarray(Nm),
+        
         "idx_massive": idx_massive,
         "idx_light":   idx_light,
 
@@ -614,8 +625,6 @@ def build_params(run_system):
     }
 
     return params
-
-
 if __name__=='__main__' :
     print ( 'HERE' )
     solsystemet = Starsystem( constants_solar_system )
