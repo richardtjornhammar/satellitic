@@ -27,30 +27,38 @@ TYPE_MOON       = celestial_types['Moon']
 TYPE_SATELLITE  = celestial_types['Satellit']
 TYPE_OTHER      = celestial_types['Other']
 
+
+
 class TrajectoryManager:
-    def __init__(self, filename, particle_type, N_steps, dt_frame):
-        """
-        particle_type : array-like, shape (N,), dtype uint8
-        """
+    def __init__(self, filename, particle_types, dt_frame):
+
         self.f = open(filename, "wb")
 
-        particle_type = np.asarray(particle_type, dtype=np.uint8)
+        particle_type = np.asarray(particle_types, dtype=np.uint8)
         self.N = particle_type.size
-        self.N_steps = N_steps
+        self.dt_frame = dt_frame
+        self.N_steps_written = 0
 
         # ---- header ----
         self.f.write(b"TRJ1")
-        self.f.write(struct.pack("iid", self.N, self.N_steps, dt_frame))
+
+        # Placeholder N_steps = 0
+        self.f.write(struct.pack("iid", self.N, 0, dt_frame))
+
         self.f.write(particle_type.tobytes())
 
     def write_step(self, r_np):
-        """
-        r_np : (N,3) float array
-        """
         r32 = np.asarray(r_np, dtype=np.float32, order="C")
         self.f.write(r32.tobytes())
+        self.N_steps_written += 1
 
     def close(self):
+        # Seek back and update N_steps
+        self.f.seek(4)  # after magic
+        self.f.write(struct.pack("iid",
+                             self.N,
+                             self.N_steps_written,
+                             self.dt_frame))
         self.f.close()
         
     def read_trj(self,traj_file):
@@ -70,6 +78,7 @@ class TrajectoryManager:
 planets = traj[:, particle_type == TYPE_PLANET]
 sats    = traj[:, particle_type == TYPE_SATELLITE]""" )
         return traj, particle_type, dt_frame ,N ,Nt
+
 
 def read_tles(filename):
     sats = []
