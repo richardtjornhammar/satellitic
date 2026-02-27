@@ -35,7 +35,7 @@ sys.excepthook = excepthook
 
 # nix-shell -p {python313Packages.numpy,python313Packages.matplotlib,python313Packages.jax,python313Packages.sgp4,python313Packages.vispy,python313Packages.pyqt5,libsForQt5.qtbase}
 
-bUseJax = False
+bUseJax = True
 try :
         import jax
         jax.config.update("jax_enable_x64", True)
@@ -47,6 +47,12 @@ except OSError:
         print ( "OSError:","JAX: WILL NOT USE IT")
 
 
+if bUseJax:
+    import jax.numpy as xp
+else:
+    import numpy as xp
+
+"""
 class Starsystem ( object ) :
     def __init__( self , constants ) :
         self.components_ = None
@@ -73,6 +79,7 @@ class Celestial( object ):
         self.radius_ = None
         self.surface_temperature_ = None
         self.composition_ = None
+"""
 
 def constants( sel = None ) :
     if sel is None :
@@ -403,8 +410,8 @@ def newtonian_simulator( \
     system_topology     = solarsystem ,
     system_constants    = constants_solar_system ,
     satellite_topology  = None ,
-    bAnimated = False , bWriteTrajectory = True,
-    trajectory_filename = "trajectory.trj", bVerbose = False , bUseJax=bUseJax ) :
+    bAnimated = False , bWriteTrajectory = False,
+    trajectory_filename = "trajectory_default.trj", bVerbose = False , bUseJax=bUseJax ) :
     #
     if bUseJax :
         # USER OVERRIDE
@@ -420,7 +427,10 @@ def newtonian_simulator( \
         max_steps = Nsteps * steps_per_frame
     if trajectory_filename is None :
         bWriteTrajectory = False
-        
+    else :
+        if not trajectory_filename == "trajectory_default.trj" :
+            bWriteTrajectory = True
+
     if bVerbose :
         print(f"""Starting simulation of {system_topology}
             using {run_parameters} """)
@@ -430,7 +440,6 @@ def newtonian_simulator( \
     run_system = build_run_system( solarsystem,
         constants_solar_system ,
         satellite_topology )
-        
     run_system.apply_barycentric_motion_correction()
     
     r, v, m, stypes , snames = run_system.phase_state()
@@ -439,6 +448,7 @@ def newtonian_simulator( \
         print( r , '\n' , v , '\n' , m )
     #
     # CREATION AND SETUP OF A LEDGER
+    from .constants import InteractionLedger
     if not ( run_parameters['mass_epsilon'] is None and run_parameters['mass_rule'] is None ) :
         run_system.ledger = InteractionLedger( mass_rule = run_parameters['mass_rule'] ,
                     mass_epsilon = run_parameters['mass_epsilon'] )
@@ -464,7 +474,7 @@ def newtonian_simulator( \
         print(f'Applied J2 corrections to {Nsat} LEO satellites')
 
     if bUseJax:
-        from ds_constants import build_params
+        from .constants import build_params
         params = build_params(run_system)
         print ( 'Jax structs initialized')
         print ( 'Have', params )
@@ -476,31 +486,29 @@ def newtonian_simulator( \
         sim = simulate_dev( r, v, m, dt = dt,
             Nsteps = Nsteps, steps_per_frame = steps_per_frame,
             run_system = run_system )
-    
+
+    writer = None
     if bWriteTrajectory :
-    
-        from tle_io import TrajectoryManager
+        from .iotools import TrajectoryManager
         writer = TrajectoryManager(
             trajectory_filename,
             particle_types=run_system.get_particle_types(),
             dt_frame=dt*steps_per_frame
         )
 
-        if not bAnimated :
-            def update(event):
-
-                r_new, step_count = next(sim)
-                if bUseJax:
-                    r_new.block_until_ready()
-                r_np = np.asarray(r_new)
-                writer.write_step(r_np)
-                if not Nsteps is None :
-                    if step_count >= max_steps:
-                        print('Finished',Nsteps,'step simulation')
-                        writer.close()
-                        exit(1)
-
     if bAnimated :
+
+        import signal
+        def handle_sigint(sig, frame):
+            print("\nUser requested shutdown.")
+            timer.stop()
+            if bWriteTrajectory:
+                if writer is not None :
+                    writer.close()
+            canvas.close()
+
+        signal.signal(signal.SIGINT, handle_sigint)
+
         #
         # Still need to generalize this
         idx_earth   = run_system.find_indices_of('Earth')[0]
@@ -597,7 +605,7 @@ def newtonian_simulator( \
         # ---- and visualisation : part 2 ----
         # Animation timer     
         
-        def update(event):
+        def update(event) :
 
             r_new, step_count = next(sim)
             if bUseJax:
@@ -619,17 +627,45 @@ def newtonian_simulator( \
             
             if bWriteTrajectory :
                 writer.write_step(r_np)
-            
-            if not Nsteps is None :
-                if step_count >= max_steps:
-                    print('Finished',Nsteps,'step simulation')
+
+            if Nsteps is not None and step_count >= max_steps:
+                print(f"Finished {Nsteps} step simulation")
+                timer.stop()
+                if bWriteTrajectory:
                     writer.close()
-                    exit(1)
+                    canvas.close()
+                    return
 
         timer = app.Timer(interval=1/30)
         timer.connect(update)
         timer.start()
         app.run()
+
+    else :
+
+        print("Running batch simulation...")
+
+        try:
+            while True:
+                r_new, step_count = next(sim)
+
+                if bUseJax:
+                    r_new.block_until_ready()
+
+                if bWriteTrajectory and writer is not None :
+                    writer.write_step(np.asarray(r_new))
+
+                if Nsteps is not None and step_count >= max_steps:
+                    print(f"Finished {Nsteps} step simulation")
+                    break
+
+        except KeyboardInterrupt:
+            print("\nSimulation interrupted by user.")
+
+        finally:
+            if write is not None :
+                writer.close()
+            print("Trajectory file closed cleanly.")
 
 
 def newtonian_simulator_legacy( bAnimated = True ,

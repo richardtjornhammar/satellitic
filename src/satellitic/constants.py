@@ -85,14 +85,16 @@ constants_solar_system = { 'G' : 6.674 * 10**(-11)	, # m3/(kg s2)	# gravitationa
     'Earth-MU' : 3.986004418e14	, # m^3 / s^2	# G*M
 	}
 
+
 def constants ( sel = None, constants_ = constants_solar_system  ) :
     if sel is None :
         return ( constants_ )
     else :
         return ( constants_[sel] )
 
-AU      = constants('AU')
-d2s     = 24*60*60 # days to secs
+AU     = constants('AU')
+G      = constants('G')
+d2s    = 24*60*60 # days to secs
 
 class Celestial( object ) :
     def __init__( self ) :
@@ -126,6 +128,9 @@ class Starsystem ( object ) :
         if not self.celestial_types_ is None :
             plnt_idx = np.where( self.celestial_types_ == 'Planet' )
             return self.celestial_names_[plnt_idx],plnt_idx
+
+    def get_particle_types( self ) :
+        return ( self.celestial_types_ )
 
     def make_arrays( self , xp = np ):
         if self.r_ is None or self.v_ is None or self.m_ is None :
@@ -362,7 +367,7 @@ class TLESatellites ( object ) :
     def assign(self , date = [2025,1,1] ):
         if not self.tle_file_name_ is None :
             from datetime import datetime
-            from tle_io import read_tles, tles_to_states
+            from .iotools import read_tles, tles_to_states
             #
             epoch = datetime( *date )
             sats				= read_tles( self.tle_file_name_ )
@@ -441,8 +446,6 @@ class InteractionLedger ( object ) :
             M_dom   = self.m_dom_
             if M_dom is None :
                 M_dom = self.set_dominant_mass_scale()
-                print ( M_dom )
-                print ( self.m_dom_)
         if m is None :
             m = self.phase_space_[2]
         self.massive_mask_ = (m / M_dom) > epsilon
@@ -625,6 +628,8 @@ def build_params(run_system, bUseJax=bUseJax ):
     }
 
     return params
+
+
 if __name__=='__main__' :
     print ( 'HERE' )
     solsystemet = Starsystem( constants_solar_system )
