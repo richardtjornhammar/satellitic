@@ -24,9 +24,15 @@ def strings_find(a, sub, start=0, end=None):
     results = []
     for s in a:
         # Python slice hanteras direkt av str.find
-        idx = s.find(sub, start, end)
+        idx = str(s).find(sub, start, end)
         results.append(idx)
+    return results
 
 if __name__ == '__main__':
     a = ["hello world", "test string", "abcabc", "no match"]
     print ( strings_find(a, "abc") )
+
+    a = np.array(["NumPy is a Python library"])
+    print( strings_find(a, "Python") )
+
+    print( 'spam, spam, spam'.find('sp', 1, None) )
